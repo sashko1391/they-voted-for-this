@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>They Voted For This</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app">
+
+    <!-- ============ HEADER ============ -->
+    <div class="header">
+      <h1>They Voted For This</h1>
+      <h2>Political <span>Simulation</span></h2>
+    </div>
+
+    <!-- ============ SETUP SCREEN ============ -->
+    <div id="setup-screen" class="setup-screen">
+      <h3>Enter the Republic</h3>
+
+      <div class="form-group">
+        <label>Your Name</label>
+        <input type="text" id="setup-name" placeholder="Enter display name" maxlength="30">
+      </div>
+
+      <div class="form-group">
+        <label>Role</label>
+        <select id="setup-role">
+          <option value="citizen">Citizen — work, consume, vote, protest</option>
+          <option value="business_owner">Business Owner — produce, set wages, lobby</option>
+          <option value="politician">Politician — write laws, allocate budget</option>
+        </select>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn-primary" id="btn-create">Create New Server</button>
+      </div>
+
+      <div class="separator">— or join existing —</div>
+
+      <div class="form-group">
+        <label>Server ID</label>
+        <input type="text" id="setup-server-id" placeholder="Paste server ID">
+      </div>
+
+      <div class="btn-row">
+        <button class="btn" id="btn-join">Join Server</button>
+      </div>
+    </div>
+
+    <!-- ============ GAME SCREEN ============ -->
+    <div id="game-screen" class="hidden">
+
+      <!-- Meta bar -->
+      <div class="meta-bar">
+        <div class="meta-item">
+          <span class="meta-label">tick</span>
+          <span class="meta-value" id="meta-tick">0</span>
+        </div>
+        <div class="meta-item">
+          <span class="meta-label">role</span>
+          <span class="meta-value" id="meta-role">—</span>
+        </div>
+        <div class="meta-item">
+          <span class="meta-label">phase</span>
+          <span class="meta-value" id="meta-phase">—</span>
+        </div>
+        <div class="meta-item">
+          <span class="meta-label">wealth</span>
+          <span class="meta-value" id="meta-wealth">0</span>
+        </div>
+        <div class="meta-item">
+          <span class="meta-label">next tick</span>
+          <span class="meta-value" id="meta-countdown">—</span>
+        </div>
+      </div>
+
+      <!-- Headlines -->
+      <div class="section">
+        <div class="section-title">Headlines</div>
+        <div id="headlines-list"></div>
+      </div>
+
+      <!-- Rumors -->
+      <div class="section">
+        <div class="section-title">Rumors</div>
+        <div id="rumors-list"></div>
+      </div>
+
+      <!-- Signals -->
+      <div class="section">
+        <div class="section-title">Signals</div>
+        <div class="signals-grid">
+          <div class="signal-card">
+            <div class="signal-label">Price Trend</div>
+            <div class="signal-value" id="signal-price">—</div>
+          </div>
+          <div class="signal-card">
+            <div class="signal-label">Availability</div>
+            <div class="signal-value" id="signal-availability">—</div>
+          </div>
+          <div class="signal-card">
+            <div class="signal-label">Approval</div>
+            <div class="signal-value" id="signal-approval">—</div>
+          </div>
+          <div class="signal-card">
+            <div class="signal-label">Active Laws</div>
+            <div class="signal-value" id="signal-laws">0</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Role-specific -->
+      <div class="section">
+        <div class="section-title">Your Status</div>
+        <div class="signals-grid" id="role-specific"></div>
+      </div>
+
+      <!-- Actions -->
+      <div class="section">
+        <div class="section-title">Actions</div>
+        <div class="action-grid" id="action-grid"></div>
+        <div id="action-params" class="action-params hidden"></div>
+      </div>
+
+      <!-- Disconnect -->
+      <div style="margin-top: 32px; padding-top: 16px; border-top: 1px solid var(--border);">
+        <span style="font-size: 12px; color: var(--text-muted);">Playing as <strong id="player-name-display"></strong></span>
+        <button class="btn btn-small" id="btn-disconnect" style="float: right;">Disconnect</button>
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- Status bar -->
+  <div class="status-bar">
+    <div>
+      <span class="status-dot online" id="status-dot"></span>
+      <span id="status-phase">—</span>
+    </div>
+    <div>they voted for this</div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
