@@ -1,0 +1,17 @@
+name = "they-voted-for-this"
+main = "src/index.ts"
+compatibility_date = "2024-01-01"
+
+[vars]
+TICK_INTERVAL_HOURS = "12"
+MAX_PLAYERS_PER_SERVER = "50"
+
+# Durable Objects
+[durable_objects]
+bindings = [
+  { name = "GAME_SERVER", class_name = "GameServer" }
+]
+
+[[migrations]]
+tag = "v1"
+new_classes = ["GameServer"]
