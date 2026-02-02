@@ -1,0 +1,120 @@
+{
+  "meta": {
+    "server_id": "a1b2c3d4-0000-0000-0000-000000000001",
+    "tick": 0,
+    "tick_interval_hours": 12,
+    "tick_deadline": "2026-02-02T00:00:00Z",
+    "created_at": "2026-02-01T12:00:00Z",
+    "phase": "accepting_actions",
+    "seed": 42
+  },
+
+  "economy": {
+    "gdp": 1000.0,
+    "gdp_delta": 0,
+    "inflation": 2.0,
+    "unemployment": 5.0,
+    "tax_rate": 20.0,
+    "tax_compliance": 0.8,
+    "budget": {
+      "revenue": 160.0,
+      "spending": 150.0,
+      "reserves": 500.0,
+      "deficit": -10.0
+    },
+    "market": {
+      "supply": 100.0,
+      "demand": 95.0,
+      "price_index": 1.0,
+      "shortage": false
+    },
+    "wage_index": 1.0
+  },
+
+  "society": {
+    "stability": 65.0,
+    "public_trust": 50.0,
+    "satisfaction": 50.0,
+    "radicalization": 10.0,
+    "protest_pressure": 0.1,
+    "movements": []
+  },
+
+  "government": {
+    "approval": {
+      "overall": 45.0,
+      "citizens": 45.0,
+      "business": 50.0,
+      "elite": 55.0
+    },
+    "budget_allocation": {
+      "welfare": 0.3,
+      "infrastructure": 0.25,
+      "enforcement": 0.2,
+      "education": 0.15,
+      "discretionary": 0.1
+    },
+    "active_law_count": 0,
+    "election_tick": null
+  },
+
+  "players": {},
+
+  "laws": [],
+
+  "events": [],
+
+  "tick_log": [],
+
+  "media_state": {
+    "headlines": [
+      {
+        "id": "h-00000000-0001",
+        "tick": 0,
+        "text": "New government takes office amid cautious optimism",
+        "bias": "neutral",
+        "truth_score": 0.7,
+        "source_event_id": null
+      },
+      {
+        "id": "h-00000000-0002",
+        "tick": 0,
+        "text": "Economy stable but experts warn of challenges ahead",
+        "bias": "establishment",
+        "truth_score": 0.8,
+        "source_event_id": null
+      },
+      {
+        "id": "h-00000000-0003",
+        "tick": 0,
+        "text": "Business leaders quietly optimistic about deregulation prospects",
+        "bias": "right",
+        "truth_score": 0.4,
+        "source_event_id": null
+      }
+    ],
+    "articles": [],
+    "rumors": [
+      {
+        "id": "r-00000000-0001",
+        "tick": 0,
+        "text": "Sources suggest budget reserves may be lower than officially reported",
+        "credibility": 0.5
+      }
+    ]
+  },
+
+  "history": {
+    "eras": [
+      {
+        "name": "The Founding",
+        "tick_start": 0,
+        "tick_end": null,
+        "summary": "A new republic begins.",
+        "key_events": [],
+        "dominant_figures": []
+      }
+    ],
+    "player_reputations": {}
+  }
+}

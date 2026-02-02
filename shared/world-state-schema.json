@@ -1,0 +1,904 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "they-voted-for-this/world-state/v1",
+  "title": "They Voted For This â€” World State",
+  "description": "Complete world state schema. This is the single source of truth owned by Core Engine. AI systems read from this but cannot write directly â€” only through validated events.",
+  "type": "object",
+  "required": ["meta", "economy", "society", "government", "players", "laws", "events", "tick_log"],
+  "properties": {
+
+    "meta": {
+      "type": "object",
+      "description": "Server and tick metadata",
+      "required": ["server_id", "tick", "tick_interval_hours", "created_at", "phase"],
+      "properties": {
+        "server_id": {
+          "type": "string",
+          "format": "uuid",
+          "description": "Unique server instance identifier"
+        },
+        "tick": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 0,
+          "description": "Current tick number. Monotonically increasing. Never resets."
+        },
+        "tick_interval_hours": {
+          "type": "integer",
+          "minimum": 6,
+          "maximum": 24,
+          "default": 12,
+          "description": "Hours between ticks. Configurable per server."
+        },
+        "tick_deadline": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO 8601 timestamp. Actions submitted after this are queued for next tick."
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "phase": {
+          "type": "string",
+          "enum": ["accepting_actions", "processing", "ai_evaluation", "resolved"],
+          "default": "accepting_actions",
+          "description": "Current tick processing phase. Prevents race conditions."
+        },
+        "seed": {
+          "type": "integer",
+          "description": "RNG seed for this tick. Ensures deterministic replay."
+        }
+      }
+    },
+
+    "economy": {
+      "type": "object",
+      "description": "Hidden economic variables. Players never see these directly.",
+      "required": ["gdp", "inflation", "unemployment", "tax_rate", "budget", "market"],
+      "properties": {
+        "gdp": {
+          "type": "number",
+          "minimum": 0,
+          "default": 1000.0,
+          "description": "Gross domestic product. Arbitrary units. Cannot go below 0. If GDP reaches 0, trigger economic_collapse event."
+        },
+        "gdp_delta": {
+          "type": "number",
+          "default": 0,
+          "description": "Change from previous tick. Positive = growth."
+        },
+        "inflation": {
+          "type": "number",
+          "minimum": -20.0,
+          "maximum": 500.0,
+          "default": 2.0,
+          "description": "Annual inflation rate in %. Negative = deflation. Above 50 = hyperinflation triggers."
+        },
+        "unemployment": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 100.0,
+          "default": 5.0,
+          "description": "Unemployment rate in %. Above 25 = mass unrest threshold."
+        },
+        "tax_rate": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 100.0,
+          "default": 20.0,
+          "description": "Effective tax rate in %. Set by law, modified by compliance/evasion."
+        },
+        "tax_compliance": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "default": 0.8,
+          "description": "Fraction of businesses actually paying taxes. Affected by enforcement and business owner actions."
+        },
+        "budget": {
+          "type": "object",
+          "description": "Government budget state",
+          "required": ["revenue", "spending", "reserves", "deficit"],
+          "properties": {
+            "revenue": {
+              "type": "number",
+              "minimum": 0,
+              "default": 160.0,
+              "description": "Tax revenue this tick. Calculated: gdp * tax_rate * tax_compliance / ticks_per_year"
+            },
+            "spending": {
+              "type": "number",
+              "minimum": 0,
+              "default": 150.0,
+              "description": "Government spending this tick. Allocated by politicians."
+            },
+            "reserves": {
+              "type": "number",
+              "default": 500.0,
+              "description": "Accumulated reserves. Can go negative (debt)."
+            },
+            "deficit": {
+              "type": "number",
+              "default": -10.0,
+              "description": "spending - revenue. Negative = surplus."
+            }
+          }
+        },
+        "market": {
+          "type": "object",
+          "description": "Goods market state",
+          "required": ["supply", "demand", "price_index"],
+          "properties": {
+            "supply": {
+              "type": "number",
+              "minimum": 0,
+              "default": 100.0,
+              "description": "Total goods supply. Produced by business owners."
+            },
+            "demand": {
+              "type": "number",
+              "minimum": 0,
+              "default": 95.0,
+              "description": "Total goods demand. Generated by citizens."
+            },
+            "price_index": {
+              "type": "number",
+              "minimum": 0.01,
+              "default": 1.0,
+              "description": "Price level relative to starting value. Driven by supply/demand ratio and inflation."
+            },
+            "shortage": {
+              "type": "boolean",
+              "default": false,
+              "description": "True when demand > supply * 1.2. Triggers unrest."
+            }
+          }
+        },
+        "wage_index": {
+          "type": "number",
+          "minimum": 0.01,
+          "default": 1.0,
+          "description": "Average wage level relative to start. Set by business owners, modified by laws."
+        }
+      }
+    },
+
+    "society": {
+      "type": "object",
+      "description": "Hidden social indicators. These drive AI interpretation layers.",
+      "required": ["stability", "public_trust", "satisfaction", "radicalization", "movements"],
+      "properties": {
+        "stability": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 100.0,
+          "default": 65.0,
+          "description": "Overall stability index. Below 20 = failed state. Above 90 = Crisis AI activates to destabilize."
+        },
+        "public_trust": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 100.0,
+          "default": 50.0,
+          "description": "Trust in government institutions. Affected by law quality, media narratives, economic conditions."
+        },
+        "satisfaction": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 100.0,
+          "default": 50.0,
+          "description": "Average citizen satisfaction. Composite of economic pressure, goods availability, perceived fairness."
+        },
+        "radicalization": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 100.0,
+          "default": 10.0,
+          "description": "Political radicalization index. Above 60 = extremist movements form. Above 80 = revolution risk."
+        },
+        "protest_pressure": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "default": 0.1,
+          "description": "Probability of protest this tick. Accumulates from dissatisfaction. Resets partially after protest."
+        },
+        "movements": {
+          "type": "array",
+          "default": [],
+          "description": "Active social/political movements. Generated by Political Reaction AI.",
+          "items": {
+            "type": "object",
+            "required": ["id", "name", "type", "strength", "created_tick"],
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "name": {
+                "type": "string",
+                "description": "AI-generated movement name"
+              },
+              "type": {
+                "type": "string",
+                "enum": ["reform", "populist", "radical", "separatist", "labor", "business"],
+                "description": "Movement archetype. Determines behavior patterns."
+              },
+              "strength": {
+                "type": "number",
+                "minimum": 0.0,
+                "maximum": 1.0,
+                "description": "Movement strength. Above 0.7 = significant political force."
+              },
+              "demands": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "AI-generated demand strings. Used by Political Reaction AI."
+              },
+              "member_player_ids": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Player IDs who joined this movement."
+              },
+              "created_tick": {
+                "type": "integer"
+              }
+            }
+          }
+        }
+      }
+    },
+
+    "government": {
+      "type": "object",
+      "description": "Political structure state",
+      "required": ["approval", "budget_allocation", "active_law_count"],
+      "properties": {
+        "approval": {
+          "type": "object",
+          "description": "Government approval ratings by faction",
+          "required": ["overall"],
+          "properties": {
+            "overall": {
+              "type": "number",
+              "minimum": 0.0,
+              "maximum": 100.0,
+              "default": 45.0,
+              "description": "Overall government approval."
+            },
+            "citizens": {
+              "type": "number",
+              "minimum": 0.0,
+              "maximum": 100.0,
+              "default": 45.0
+            },
+            "business": {
+              "type": "number",
+              "minimum": 0.0,
+              "maximum": 100.0,
+              "default": 50.0
+            },
+            "elite": {
+              "type": "number",
+              "minimum": 0.0,
+              "maximum": 100.0,
+              "default": 55.0
+            }
+          }
+        },
+        "budget_allocation": {
+          "type": "object",
+          "description": "How budget is distributed. Set by politicians. Values are fractions summing to 1.0.",
+          "properties": {
+            "welfare": { "type": "number", "minimum": 0, "maximum": 1, "default": 0.3 },
+            "infrastructure": { "type": "number", "minimum": 0, "maximum": 1, "default": 0.25 },
+            "enforcement": { "type": "number", "minimum": 0, "maximum": 1, "default": 0.2 },
+            "education": { "type": "number", "minimum": 0, "maximum": 1, "default": 0.15 },
+            "discretionary": { "type": "number", "minimum": 0, "maximum": 1, "default": 0.1 }
+          }
+        },
+        "active_law_count": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 0
+        },
+        "election_tick": {
+          "type": ["integer", "null"],
+          "default": null,
+          "description": "Tick number of next election. Null if not scheduled."
+        }
+      }
+    },
+
+    "players": {
+      "type": "object",
+      "description": "Player registry. Keyed by player_id.",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["id", "role", "name", "joined_tick", "alive", "hidden_stats", "visible_stats", "actions_pending"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "role": {
+            "type": "string",
+            "enum": ["citizen", "business_owner", "politician"],
+            "description": "Assigned at join. Immutable for MVP."
+          },
+          "name": {
+            "type": "string",
+            "description": "Player-chosen display name."
+          },
+          "joined_tick": {
+            "type": "integer"
+          },
+          "alive": {
+            "type": "boolean",
+            "default": true,
+            "description": "False = removed from active play (bankrupt, exiled, etc)."
+          },
+
+          "hidden_stats": {
+            "type": "object",
+            "description": "NEVER exposed to any player. Only readable by AI systems and Core Engine.",
+            "properties": {
+              "influence": {
+                "type": "number",
+                "minimum": 0.0,
+                "maximum": 100.0,
+                "default": 5.0,
+                "description": "How much this player's actions affect outcomes. Grows with consistent activity."
+              },
+              "reputation": {
+                "type": "number",
+                "minimum": -100.0,
+                "maximum": 100.0,
+                "default": 0.0,
+                "description": "AI-tracked reputation. Affects NPC behavior and media attention."
+              },
+              "fear": {
+                "type": "number",
+                "minimum": 0.0,
+                "maximum": 100.0,
+                "default": 0.0,
+                "description": "How much others fear this player. High fear = compliance but instability."
+              },
+              "corruption": {
+                "type": "number",
+                "minimum": 0.0,
+                "maximum": 100.0,
+                "default": 0.0,
+                "description": "Accumulated corruption. High values attract scandals from Crisis AI."
+              },
+              "historical_legacy": {
+                "type": "number",
+                "minimum": -100.0,
+                "maximum": 100.0,
+                "default": 0.0,
+                "description": "Long-term historical impact. Only Historian AI writes this."
+              }
+            }
+          },
+
+          "visible_stats": {
+            "type": "object",
+            "description": "Stats visible to the owning player (with noise applied by Core Engine).",
+            "properties": {
+              "wealth": {
+                "type": "number",
+                "minimum": 0,
+                "default": 100.0,
+                "description": "Personal wealth. Citizens earn wages, Business owners earn profits, Politicians earn salary."
+              },
+              "movement_id": {
+                "type": ["string", "null"],
+                "default": null,
+                "description": "Movement this player belongs to, if any."
+              }
+            }
+          },
+
+          "role_data": {
+            "type": "object",
+            "description": "Role-specific data. Structure depends on role.",
+            "properties": {
+
+              "citizen": {
+                "type": "object",
+                "properties": {
+                  "employer_id": {
+                    "type": ["string", "null"],
+                    "default": null,
+                    "description": "Business owner player_id. Null = unemployed."
+                  },
+                  "satisfaction": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 100,
+                    "default": 50.0,
+                    "description": "Personal satisfaction. Hidden from player. Affects vote tendency."
+                  },
+                  "economic_pressure": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 100,
+                    "default": 30.0,
+                    "description": "Personal economic stress. Hidden."
+                  },
+                  "radicalization": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 100,
+                    "default": 5.0,
+                    "description": "Individual radicalization. Hidden."
+                  },
+                  "voted_this_tick": {
+                    "type": "boolean",
+                    "default": false
+                  }
+                }
+              },
+
+              "business_owner": {
+                "type": "object",
+                "properties": {
+                  "production_capacity": {
+                    "type": "number",
+                    "minimum": 0,
+                    "default": 10.0,
+                    "description": "How many goods produced per tick."
+                  },
+                  "wage_level": {
+                    "type": "number",
+                    "minimum": 0,
+                    "default": 1.0,
+                    "description": "Wage multiplier relative to index. Set by player."
+                  },
+                  "employees": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "default": 5,
+                    "description": "Number of citizen-employees."
+                  },
+                  "tax_evasion": {
+                    "type": "number",
+                    "minimum": 0.0,
+                    "maximum": 1.0,
+                    "default": 0.0,
+                    "description": "Fraction of taxes being evaded. Hidden from government. Risk of scandal."
+                  },
+                  "lobby_target": {
+                    "type": ["string", "null"],
+                    "default": null,
+                    "description": "Politician player_id being lobbied."
+                  },
+                  "strike_risk": {
+                    "type": "number",
+                    "minimum": 0.0,
+                    "maximum": 1.0,
+                    "default": 0.1,
+                    "description": "Probability of worker strike. Affected by wages, market conditions."
+                  }
+                }
+              },
+
+              "politician": {
+                "type": "object",
+                "properties": {
+                  "party": {
+                    "type": ["string", "null"],
+                    "default": null,
+                    "description": "Party affiliation. Optional for MVP."
+                  },
+                  "laws_proposed": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "default": 0
+                  },
+                  "laws_passed": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "default": 0
+                  },
+                  "public_statements": {
+                    "type": "array",
+                    "default": [],
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "tick": { "type": "integer" },
+                        "text": { "type": "string", "maxLength": 500 }
+                      }
+                    },
+                    "description": "Public statements made. Fed to Media AI."
+                  },
+                  "lobby_money_received": {
+                    "type": "number",
+                    "minimum": 0,
+                    "default": 0,
+                    "description": "Accumulated lobby money. Hidden. Increases corruption."
+                  }
+                }
+              }
+            }
+          },
+
+          "actions_pending": {
+            "type": "array",
+            "default": [],
+            "description": "Actions submitted for current tick. Cleared after processing.",
+            "items": {
+              "$ref": "#/$defs/player_action"
+            }
+          },
+
+          "actions_history": {
+            "type": "array",
+            "default": [],
+            "description": "Last 10 ticks of action history. Older entries pruned.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "tick": { "type": "integer" },
+                "actions": {
+                  "type": "array",
+                  "items": { "$ref": "#/$defs/player_action" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+
+    "laws": {
+      "type": "array",
+      "default": [],
+      "description": "All laws ever proposed. Active laws have status=active.",
+      "items": {
+        "type": "object",
+        "required": ["id", "proposed_by", "proposed_tick", "original_text", "status"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "proposed_by": {
+            "type": "string",
+            "description": "Politician player_id"
+          },
+          "proposed_tick": {
+            "type": "integer"
+          },
+          "original_text": {
+            "type": "string",
+            "maxLength": 2000,
+            "description": "Free-text law as written by politician. This is the input to Judiciary AI."
+          },
+          "status": {
+            "type": "string",
+            "enum": ["proposed", "voting", "active", "repealed", "rejected", "invalidated"],
+            "default": "proposed"
+          },
+          "votes": {
+            "type": "object",
+            "description": "Vote tally",
+            "properties": {
+              "for": { "type": "integer", "default": 0 },
+              "against": { "type": "integer", "default": 0 },
+              "abstain": { "type": "integer", "default": 0 }
+            }
+          },
+          "judiciary_interpretation": {
+            "type": ["object", "null"],
+            "default": null,
+            "description": "Judiciary AI output. Null until processed.",
+            "properties": {
+              "interpretation": {
+                "type": "string",
+                "description": "How the law is actually being applied."
+              },
+              "ambiguities": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Ambiguities found in original text."
+              },
+              "implementation": {
+                "type": "object",
+                "description": "Concrete rules for Core Engine.",
+                "properties": {
+                  "affected_variables": {
+                    "type": "array",
+                    "items": { "type": "string" },
+                    "description": "World state paths affected. e.g. ['economy.tax_rate', 'economy.wage_index']"
+                  },
+                  "modifiers": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "required": ["variable", "operation", "value"],
+                      "properties": {
+                        "variable": { "type": "string" },
+                        "operation": {
+                          "type": "string",
+                          "enum": ["set", "add", "multiply", "clamp"]
+                        },
+                        "value": { "type": "number" },
+                        "min": { "type": "number" },
+                        "max": { "type": "number" }
+                      }
+                    }
+                  }
+                }
+              },
+              "rejected_by_core": {
+                "type": "boolean",
+                "default": false,
+                "description": "True if Core Engine rejected implementation due to hard constraint violation."
+              }
+            }
+          },
+          "activated_tick": {
+            "type": ["integer", "null"],
+            "default": null
+          },
+          "repealed_tick": {
+            "type": ["integer", "null"],
+            "default": null
+          }
+        }
+      }
+    },
+
+    "events": {
+      "type": "array",
+      "default": [],
+      "description": "Events generated by AI systems. Applied by Core Engine after validation.",
+      "items": {
+        "type": "object",
+        "required": ["id", "source", "tick", "type", "severity", "status"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "source": {
+            "type": "string",
+            "enum": ["state_analyst", "media", "political_reaction", "judiciary", "crisis", "core_engine"],
+            "description": "Which AI system generated this event."
+          },
+          "tick": {
+            "type": "integer",
+            "description": "Tick when event was created."
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "economic_crisis", "protest", "strike", "scandal",
+              "election_triggered", "movement_formed", "movement_dissolved",
+              "nationalization", "market_crash", "hyperinflation",
+              "revolution", "reform", "media_narrative_shift",
+              "judicial_override", "budget_crisis", "shortage",
+              "corruption_exposed", "foreign_shock", "natural_disaster"
+            ]
+          },
+          "severity": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 5,
+            "description": "1=minor, 3=significant, 5=catastrophic"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["pending", "applied", "rejected", "expired"],
+            "default": "pending"
+          },
+          "description": {
+            "type": "string",
+            "description": "AI-generated event description. Used by Media AI for narratives."
+          },
+          "modifiers": {
+            "type": "array",
+            "description": "State modifications. Same format as law modifiers.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "variable": { "type": "string" },
+                "operation": { "type": "string", "enum": ["set", "add", "multiply", "clamp"] },
+                "value": { "type": "number" }
+              }
+            }
+          },
+          "duration_ticks": {
+            "type": ["integer", "null"],
+            "default": null,
+            "description": "How many ticks this event persists. Null = instant."
+          },
+          "expires_tick": {
+            "type": ["integer", "null"],
+            "default": null
+          },
+          "narrative_hook": {
+            "type": "string",
+            "description": "Short phrase for Media AI to build narrative around."
+          }
+        }
+      }
+    },
+
+    "tick_log": {
+      "type": "array",
+      "default": [],
+      "description": "Complete log of each tick resolution. Last 50 ticks kept. Historian AI reads this.",
+      "items": {
+        "type": "object",
+        "required": ["tick", "timestamp", "actions_processed", "events_applied", "state_snapshot_hash"],
+        "properties": {
+          "tick": { "type": "integer" },
+          "timestamp": { "type": "string", "format": "date-time" },
+          "actions_processed": {
+            "type": "integer",
+            "description": "Total player actions processed this tick."
+          },
+          "actions_skipped": {
+            "type": "integer",
+            "description": "Actions not submitted (player inactive)."
+          },
+          "events_applied": {
+            "type": "integer"
+          },
+          "events_rejected": {
+            "type": "integer"
+          },
+          "laws_activated": { "type": "integer" },
+          "laws_rejected": { "type": "integer" },
+          "state_snapshot_hash": {
+            "type": "string",
+            "description": "SHA-256 of serialized state after tick. For integrity verification and deterministic replay."
+          },
+          "ai_outputs": {
+            "type": "object",
+            "description": "References to AI system outputs for this tick.",
+            "properties": {
+              "state_analyst": { "type": ["object", "null"] },
+              "judiciary": { "type": ["array", "null"] },
+              "media": { "type": ["object", "null"] },
+              "political_reaction": { "type": ["object", "null"] },
+              "crisis": { "type": ["object", "null"] },
+              "historian": { "type": ["object", "null"] }
+            }
+          }
+        }
+      }
+    },
+
+    "media_state": {
+      "type": "object",
+      "description": "Current media landscape. Generated by Media AI. This is what players see.",
+      "properties": {
+        "headlines": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string", "format": "uuid" },
+              "tick": { "type": "integer" },
+              "text": { "type": "string", "maxLength": 200 },
+              "bias": { "type": "string", "enum": ["left", "right", "populist", "establishment", "neutral"] },
+              "truth_score": {
+                "type": "number",
+                "minimum": 0.0,
+                "maximum": 1.0,
+                "description": "How truthful this headline is. 0=complete fabrication, 1=accurate. NEVER shown to players."
+              },
+              "source_event_id": {
+                "type": ["string", "null"],
+                "description": "Event that triggered this headline, if any."
+              }
+            }
+          }
+        },
+        "articles": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string", "format": "uuid" },
+              "tick": { "type": "integer" },
+              "headline_id": { "type": "string" },
+              "body": { "type": "string", "maxLength": 1000 },
+              "bias": { "type": "string" },
+              "mentions_players": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Player IDs mentioned in article."
+              }
+            }
+          }
+        },
+        "rumors": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string", "format": "uuid" },
+              "tick": { "type": "integer" },
+              "text": { "type": "string", "maxLength": 300 },
+              "credibility": {
+                "type": "number",
+                "minimum": 0.0,
+                "maximum": 1.0,
+                "description": "How believable this rumor appears. NOT how true it is."
+              }
+            }
+          }
+        }
+      }
+    },
+
+    "history": {
+      "type": "object",
+      "description": "Historian AI output. Read-only record.",
+      "properties": {
+        "eras": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" },
+              "tick_start": { "type": "integer" },
+              "tick_end": { "type": ["integer", "null"] },
+              "summary": { "type": "string" },
+              "key_events": { "type": "array", "items": { "type": "string" } },
+              "dominant_figures": { "type": "array", "items": { "type": "string" } }
+            }
+          }
+        },
+        "player_reputations": {
+          "type": "object",
+          "description": "Historical reputation assessments by Historian AI.",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "title": { "type": "string", "description": "e.g. 'The Reformer', 'The Tyrant'" },
+              "legacy_score": { "type": "number", "minimum": -100, "maximum": 100 },
+              "notable_actions": { "type": "array", "items": { "type": "string" } }
+            }
+          }
+        }
+      }
+    }
+  },
+
+  "$defs": {
+    "player_action": {
+      "type": "object",
+      "required": ["action_type", "submitted_at"],
+      "properties": {
+        "action_type": {
+          "type": "string",
+          "enum": [
+            "work", "consume", "vote_law", "join_movement", "leave_movement",
+            "produce", "set_wages", "lobby", "evade_taxes", "comply_taxes",
+            "propose_law", "vote_law_politician", "allocate_budget", "publish_statement"
+          ]
+        },
+        "submitted_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "params": {
+          "type": "object",
+          "description": "Action-specific parameters. Structure varies by action_type.",
+          "additionalProperties": true
+        }
+      }
+    }
+  }
+}
