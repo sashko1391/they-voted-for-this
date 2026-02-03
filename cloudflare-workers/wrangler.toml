@@ -1,12 +1,12 @@
 name = "they-voted-for-this"
 main = "src/index.ts"
-compatibility_date = "2024-01-01"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
 
 [vars]
 TICK_INTERVAL_HOURS = "12"
 MAX_PLAYERS_PER_SERVER = "50"
 
-# Durable Objects
 [durable_objects]
 bindings = [
   { name = "GAME_SERVER", class_name = "GameServer" }
@@ -14,4 +14,4 @@ bindings = [
 
 [[migrations]]
 tag = "v1"
-new_classes = ["GameServer"]
+new_sqlite_classes = ["GameServer"]

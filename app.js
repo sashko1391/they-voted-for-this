@@ -7,7 +7,7 @@
 
 // ---- CONFIG ----
 // Change this to your deployed worker URL
-const API_URL = "https://they-voted-for-this.YOUR_SUBDOMAIN.workers.dev";
+const API_URL = "https://they-voted-for-this.sashko1391.workers.dev";
 
 // ---- STATE ----
 let session = {
